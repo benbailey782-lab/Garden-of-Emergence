@@ -5257,15 +5257,25 @@ const modelRegistry = {
         merged.computeVertexNormals();
         merged.computeBoundingSphere();
 
-        // Add a normalized height attribute (0 at base, 1 at top) for sway animation
+        // Add a normalized height attribute (0 at base, 1 at tip) for sway animation.
+        // Use distance from base center instead of pure Y height — this handles
+        // radiating/bowl-shaped models (like anemones with outward tentacles) correctly,
+        // where tentacle tips are far from center but not necessarily the highest Y.
         const posArr = merged.getAttribute('position');
         merged.computeBoundingBox();
         const minY = merged.boundingBox.min.y;
-        const maxY = merged.boundingBox.max.y;
-        const hRange = maxY - minY || 1;
         const heightNorm = new Float32Array(posArr.count);
+        let maxDist = 0;
         for (let i = 0; i < posArr.count; i++) {
-          heightNorm[i] = (posArr.getY(i) - minY) / hRange;
+          const x = posArr.getX(i);
+          const y = posArr.getY(i) - minY;
+          const z = posArr.getZ(i);
+          const dist = Math.sqrt(x * x + y * y + z * z);
+          heightNorm[i] = dist;
+          if (dist > maxDist) maxDist = dist;
+        }
+        if (maxDist > 0) {
+          for (let i = 0; i < posArr.count; i++) heightNorm[i] /= maxDist;
         }
         merged.setAttribute('aHeightNorm', new THREE.BufferAttribute(heightNorm, 1));
 
