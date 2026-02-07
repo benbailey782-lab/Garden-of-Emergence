@@ -5572,6 +5572,7 @@ function hash3(x, y, z) {
 
 function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
+function fract(x) { return x - Math.floor(x); }
 function smoothstep(a, b, x) {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
@@ -5593,7 +5594,7 @@ class CoralAdornment {
     this._spawnedVerts = new Set();
 
     // Keep colonies readable: simple spacing grid on surface.
-    this._cellSize = 0.16;
+    this._cellSize = 0.24;
     this._grid = new Map();
 
     // Slow, meditative colonization.
@@ -5618,32 +5619,47 @@ class CoralAdornment {
     const spawn = this.organism.spawnVertex;
     if (!spawn) return;
 
-    // Lumpy rock: main dome + offset bumps for organic shape
-    const main = new THREE.SphereGeometry(0.18, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65);
-    const posAttr = main.getAttribute('position');
-    for (let i = 0; i < posAttr.count; i++) {
-      const x = posAttr.getX(i), y = posAttr.getY(i), z = posAttr.getZ(i);
-      const noise = Math.sin(x*7.3 + y*5.1) * Math.cos(z*6.2 + x*3.7) * 0.12;
-      const scale = 1.0 + noise + (y > 0 ? 0.08 : -0.04);
-      posAttr.setXYZ(i, x * scale, y * scale * 1.1, z * scale);
+    // Try to use a GLB model for the hero instead of the procedural blob
+    const models = modelRegistry.getModelsForSeed('coral');
+    const modelGeo = models.length > 0 ? modelRegistry.get(models[0].id) : null;
+
+    let heroGeo, heroMat;
+    if (modelGeo) {
+      heroGeo = modelGeo.clone();
+      heroMat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#d4728a'),
+        roughness: 0.6,
+        metalness: 0.05,
+        emissive: new THREE.Color('#d4728a'),
+        emissiveIntensity: 0.15,
+      });
+    } else {
+      // Procedural fallback: lumpy rock
+      const main = new THREE.SphereGeometry(0.18, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65);
+      const posAttr = main.getAttribute('position');
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i), y = posAttr.getY(i), z = posAttr.getZ(i);
+        const noise = Math.sin(x*7.3 + y*5.1) * Math.cos(z*6.2 + x*3.7) * 0.12;
+        const scale = 1.0 + noise + (y > 0 ? 0.08 : -0.04);
+        posAttr.setXYZ(i, x * scale, y * scale * 1.1, z * scale);
+      }
+      main.computeVertexNormals();
+      main.translate(0, 0.02, 0);
+
+      const b1 = new THREE.SphereGeometry(0.11, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
+      b1.translate(0.13, 0.03, 0.08);
+      const b2 = new THREE.SphereGeometry(0.09, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
+      b2.translate(-0.11, 0.04, -0.07);
+      const b3 = new THREE.SphereGeometry(0.075, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
+      b3.translate(0.04, 0.08, -0.12);
+
+      heroGeo = mergeBufferGeometries([main, b1, b2, b3]);
+      heroMat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color().setHSL(0.08, 0.07, 0.60),
+        roughness: 0.92,
+        metalness: 0.02,
+      });
     }
-    main.computeVertexNormals();
-    main.translate(0, 0.02, 0);
-
-    const b1 = new THREE.SphereGeometry(0.11, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    b1.translate(0.13, 0.03, 0.08);
-    const b2 = new THREE.SphereGeometry(0.09, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    b2.translate(-0.11, 0.04, -0.07);
-    const b3 = new THREE.SphereGeometry(0.075, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    b3.translate(0.04, 0.08, -0.12);
-
-    const heroGeo = mergeBufferGeometries([main, b1, b2, b3]);
-
-    const heroMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color().setHSL(0.08, 0.07, 0.60),
-      roughness: 0.92,
-      metalness: 0.02,
-    });
 
     const mesh = new THREE.Mesh(heroGeo, heroMat);
     mesh.renderOrder = 5;
@@ -5657,21 +5673,24 @@ class CoralAdornment {
     }
 
     const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), n);
-    // Slight lean
-    const lean = (hash3(p.x*1.3, p.y*1.3, p.z*1.3) - 0.5) * 0.15;
-    const qLean = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), lean);
-    quat.multiply(qLean);
+    // Slight lean only for procedural hero
+    if (!modelGeo) {
+      const lean = (hash3(p.x*1.3, p.y*1.3, p.z*1.3) - 0.5) * 0.15;
+      const qLean = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), lean);
+      quat.multiply(qLean);
+    }
 
-    mesh.position.copy(p).addScaledVector(n, 0.02);
+    // Higher lift for hero to stay above substrate
+    this._heroLift = modelGeo ? 0.08 : 0.02;
+    mesh.position.copy(p).addScaledVector(n, this._heroLift);
     mesh.quaternion.copy(quat);
 
-    this._heroBaseScale = 0.55;
+    this._heroBaseScale = modelGeo ? 0.80 : 0.55;
     mesh.scale.setScalar(this._heroBaseScale);
 
     this._heroVi = spawn.index;
     this._heroBasePos = p.clone();
     this._heroBaseNormal = n.clone();
-    this._heroLift = 0.02;
 
     this.scene.add(mesh);
     this._hero = mesh;
@@ -5687,10 +5706,9 @@ class CoralAdornment {
     const s = current + (targetScale - current) * 0.015;
     this._hero.scale.setScalar(s);
 
-    // Track substrate height
-    const heightArr = this.organism.heightArr;
-    if (heightArr && this._heroVi != null) {
-      const h = heightArr[this._heroVi] || 0;
+    // Track max local substrate height (prevents burial by neighbor vertices)
+    if (this._heroVi != null) {
+      const h = this._getMaxLocalHeight(this._heroVi);
       this._hero.position.copy(this._heroBasePos).addScaledVector(this._heroBaseNormal, h + this._heroLift);
     }
   }
@@ -5765,10 +5783,38 @@ class CoralAdornment {
   }
 
   _gridOk(p) {
+    const s = this._cellSize;
+    const ix = Math.floor(p.x / s);
+    const iy = Math.floor(p.y / s);
+    const iz = Math.floor(p.z / s);
+    // Check center cell + 26 neighbors (3x3x3 cube) to prevent overlap
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const k = (((ix+dx) & 1023) << 20) ^ (((iy+dy) & 1023) << 10) ^ ((iz+dz) & 1023);
+          if (this._grid.has(k)) return false;
+        }
+      }
+    }
     const k = this._gridKey(p);
-    if (this._grid.has(k)) return false;
     this._grid.set(k, 1);
     return true;
+  }
+
+  /** Get max substrate height across a vertex and its neighbors to prevent burial. */
+  _getMaxLocalHeight(vi) {
+    const heightArr = this.organism.heightArr;
+    if (!heightArr) return 0;
+    let h = heightArr[vi] || 0;
+    const verts = this.organism.canvas?.vertices;
+    const neighbors = verts?.[vi]?.neighbors;
+    if (neighbors) {
+      for (const ni of neighbors) {
+        const nh = heightArr[ni] || 0;
+        if (nh > h) h = nh;
+      }
+    }
+    return h;
   }
 
   _buildMeshes() {
@@ -5824,13 +5870,31 @@ class CoralAdornment {
     }
   }
 
-  /** Pick a mesh variant by weighted random selection */
+  /** Pick a mesh variant using spatial hash for even distribution across the surface. */
   _pickMeshWeighted(vi) {
-    const r = rand01(vi * 2.71);
+    if (this._instanced.length <= 1) return this._instanced[0] || null;
+
+    const v = this.organism.canvas?.vertices?.[vi];
+    if (!v) return this._instanced[0];
+
+    // Spatial hash based on world position — ensures even scatter.
+    // Different prime multipliers per axis prevent grid-aligned patterns.
+    const p = v.position;
+    const r = fract(Math.sin(p.x * 127.1 + p.y * 311.7 + p.z * 74.7) * 43758.5453);
+
+    // Find initial pick from cumulative weight table
+    let pick = this._instanced.length - 1;
     for (let i = 0; i < this._spawnWeights.length; i++) {
-      if (r < this._spawnWeights[i]) return this._instanced[i];
+      if (r < this._spawnWeights[i]) { pick = i; break; }
     }
-    return this._instanced[this._instanced.length - 1];
+
+    // Capacity fallback: if chosen mesh is full, round-robin to next available
+    for (let attempt = 0; attempt < this._instanced.length; attempt++) {
+      const idx = (pick + attempt) % this._instanced.length;
+      const mesh = this._instanced[idx];
+      if ((mesh.userData.nextIndex | 0) < this.MAX) return mesh;
+    }
+    return this._instanced[pick];
   }
 
   _buildProceduralMeshes() {
@@ -5980,15 +6044,18 @@ class CoralAdornment {
       if (up.dot(outward) < 0) up.negate();
     }
 
-    // Small natural tilt (0-12°) for organic variety
-    const tiltAngle = rand01(vi * 5.17) * 0.21;
-    const tiltAxis = new THREE.Vector3(
-      rand01(vi * 3.29) - 0.5, rand01(vi * 7.43) - 0.5, rand01(vi * 11.07) - 0.5
-    ).normalize();
-    tiltAxis.sub(up.clone().multiplyScalar(tiltAxis.dot(up))).normalize();
-    if (tiltAxis.lengthSq() > 0.01) {
-      const qTilt = new THREE.Quaternion().setFromAxisAngle(tiltAxis, tiltAngle);
-      up.applyQuaternion(qTilt);
+    // Small natural tilt (0-12°) for organic variety — only for procedural meshes.
+    // GLB models have clear visual structure where tilt looks obviously wrong.
+    if (!mesh.userData.isGLB) {
+      const tiltAngle = rand01(vi * 5.17) * 0.21;
+      const tiltAxis = new THREE.Vector3(
+        rand01(vi * 3.29) - 0.5, rand01(vi * 7.43) - 0.5, rand01(vi * 11.07) - 0.5
+      ).normalize();
+      tiltAxis.sub(up.clone().multiplyScalar(tiltAxis.dot(up))).normalize();
+      if (tiltAxis.lengthSq() > 0.01) {
+        const qTilt = new THREE.Quaternion().setFromAxisAngle(tiltAxis, tiltAngle);
+        up.applyQuaternion(qTilt);
+      }
     }
 
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
@@ -6002,11 +6069,13 @@ class CoralAdornment {
     const sJit = 0.85 + rand01(vi * 9.1) * 0.35;
     const targetScale = sCore * sJit;
 
-    // Lift above substrate — scale-proportional so larger forms don't clip
-    const lift = 0.025 + 0.035 * targetScale;
+    // Lift above substrate — scale-proportional so larger forms don't clip.
+    // GLB models are wider and need extra clearance above neighbor heights.
+    const modelHalfWidth = mesh.userData.isGLB ? (0.10 * targetScale) : 0.0;
+    const lift = 0.05 + 0.06 * targetScale + modelHalfWidth;
 
-    // Read current substrate height for this vertex
-    const h = this.organism.heightArr ? (this.organism.heightArr[vi] || 0) : 0;
+    // Read max substrate height across this vertex and its neighbors
+    const h = this._getMaxLocalHeight(vi);
     // Position = base sphere pos + normal * (substrate height + lift)
     const pos = p.clone().addScaledVector(up, h + lift);
 
@@ -6051,8 +6120,8 @@ class CoralAdornment {
       const g = this._growing[i];
       const age = this._time - g.startTime;
 
-      // Recompute position from current substrate height
-      const h = (heightArr && g.vi != null) ? (heightArr[g.vi] || 0) : 0;
+      // Recompute position from max local substrate height (prevents burial)
+      const h = (g.vi != null) ? this._getMaxLocalHeight(g.vi) : 0;
       const pos = g.basePos.clone().addScaledVector(g.baseNormal, h + g.lift);
 
       // Stage 1: visible pin hold (almost static)
@@ -6094,14 +6163,14 @@ class CoralAdornment {
     // Update settled instances every ~30 frames to track substrate height changes
     if (!this._settled.length) return;
     this._settledTick = (this._settledTick || 0) + 1;
-    if (this._settledTick % 30 !== 0) return;
+    if (this._settledTick % 10 !== 0) return;
 
     const heightArr = this.organism.heightArr;
     if (!heightArr) return;
 
     for (let i = 0; i < this._settled.length; i++) {
       const g = this._settled[i];
-      const h = (g.vi != null) ? (heightArr[g.vi] || 0) : 0;
+      const h = (g.vi != null) ? this._getMaxLocalHeight(g.vi) : 0;
       const pos = g.basePos.clone().addScaledVector(g.baseNormal, h + g.lift);
       const mat4 = new THREE.Matrix4().compose(pos, g.quat, new THREE.Vector3(g.scale, g.scale, g.scale));
       g.mesh.setMatrixAt(g.index, mat4);
