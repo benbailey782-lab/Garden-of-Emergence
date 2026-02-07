@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Garden of Emergence</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@200;300;400;500;600&display=swap');
+
+:root {
+  --bg: #e8e4df;
+  --text: #3a3530;
+  --text-dim: #9a9590;
+  --text-light: #b8b4ae;
+  --accent: #7a6b5a;
+  --accent-hover: #6a5b4a;
+  --geo-color: #c85a30;
+  --glass: rgba(255, 252, 248, 0.78);
+  --glass-border: rgba(120, 100, 80, 0.1);
+  --panel-bg: rgba(252, 250, 246, 0.92);
+  --locked: #c8c4be;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  overflow: hidden;
+  width: 100vw; height: 100vh;
+  user-select: none;
+}
+
+#app { width: 100%; height: 100%; position: relative; cursor: default; }
+canvas { display: block; }
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE
+   ═══════════════════════════════════════════ */
+#landing {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(232, 228, 223, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: opacity 0.35s ease;
+  cursor: default;
+}
+#landing.hidden { opacity: 0; pointer-events: none; }
+
+#landing-content {
+  text-align: center;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 32px;
+}
+
+#landing-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px; font-weight: 400;
+  letter-spacing: 5px; text-transform: uppercase;
+  color: var(--text); opacity: 0.7;
+}
+
+#landing-sub {
+  font-size: 13px; font-weight: 200;
+  letter-spacing: 1.5px; color: var(--text-dim);
+  margin-top: -20px;
+}
+
+#landing-btns {
+  display: flex; flex-direction: column; gap: 10px;
+  width: 220px;
+}
+
+.landing-btn {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; font-weight: 400;
+  letter-spacing: 0.8px; color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+.landing-btn:hover:not(:disabled) {
+  background: rgba(255, 252, 248, 0.9);
+  border-color: rgba(120, 100, 80, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+.landing-btn:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════
+   CANVAS SELECTION
+   ═══════════════════════════════════════════ */
+#canvas-select {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(232, 228, 223, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.35s ease;
+  cursor: default;
+}
+#canvas-select.visible { opacity: 1; pointer-events: auto; }
+
+#cs-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; font-weight: 400;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 28px;
+}
+
+#cs-cards {
+  display: flex; gap: 16px;
+}
+
+.cs-card {
+  width: 170px; padding: 24px 18px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+  backdrop-filter: blur(10px);
+}
+.cs-card:hover:not(.locked) {
+  background: rgba(255, 252, 248, 0.95);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.07);
+  border-color: rgba(120, 100, 80, 0.2);
+}
+.cs-card.locked {
+  opacity: 0.4; cursor: default;
+}
+.cs-card .cs-icon { width: 44px; height: 44px; }
+.cs-card .cs-icon svg { width: 100%; height: 100%; }
+.cs-card .cs-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text);
+}
+.cs-card .cs-desc {
+  font-size: 10px; font-weight: 200;
+  color: var(--text-dim); line-height: 1.5;
+}
+.cs-card .cs-lock {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px; letter-spacing: 1px;
+  color: var(--locked); text-transform: uppercase;
+}
+
+#cs-back {
+  margin-top: 24px;
+  background: none; border: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--text-dim); cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+#cs-back:hover { color: var(--text); }
+
+/* ═══════════════════════════════════════════
+   TUTORIAL OVERLAY
+   ═══════════════════════════════════════════ */
+#tutorial-overlay {
+  position: absolute; inset: 0; z-index: 45;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(232, 228, 223, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+#tutorial-overlay.visible {
+  opacity: 1; pointer-events: auto;
+}
+
+#tutorial-card {
+  width: 380px;
+  max-width: 90vw;
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 36px 32px 24px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transform: translateY(8px);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+#tutorial-overlay.visible #tutorial-card {
+  transform: translateY(0);
+}
+
+#tutorial-body {
+  min-height: 140px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px;
+}
+
+#tutorial-icon {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.5;
+}
+#tutorial-icon svg {
+  width: 44px; height: 44px;
+}
+
+#tutorial-heading {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--text); opacity: 0.7;
+}
+
+#tutorial-text {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 300;
+  line-height: 1.7;
+  color: var(--text-dim);
+  max-width: 320px;
+  letter-spacing: 0.3px;
+}
+
+#tutorial-footer {
+  margin-top: 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+#tutorial-dots {
+  display: flex; gap: 6px;
+}
+.tutorial-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-light);
+  opacity: 0.3;
+  transition: opacity 0.3s ease, background 0.3s ease;
+}
+.tutorial-dot.active {
+  opacity: 0.7;
+  background: var(--accent);
+}
+
+#tutorial-btns {
+  display: flex; gap: 8px;
+}
+
+.tutorial-btn {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.tutorial-btn:hover {
+  background: rgba(255, 252, 248, 0.95);
+  color: var(--text);
+  border-color: rgba(120, 100, 80, 0.2);
+}
+.tutorial-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+.tutorial-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+/* ═══════════════════════════════════════════
+   HUD
+   ═══════════════════════════════════════════ */
+#hud {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 10;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 24px 18px;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+#hud.visible { opacity: 1; }
+#hud > * { pointer-events: auto; cursor: default; }
+
+#hud-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  pointer-events: none;
+}
+
+#brand { display: flex; flex-direction: column; gap: 2px; }
+#title {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--accent); opacity: 0.7;
+}
+#subtitle {
+  font-size: 10px; font-weight: 200;
+  letter-spacing: 1px; color: var(--text-dim); opacity: 0.7;
+}
+
+#stats {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text);
+  letter-spacing: 0.3px; text-align: right;
+  line-height: 1.6;
+  background: rgba(255, 252, 248, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  pointer-events: auto;
+}
+#stats-row {
+  display: flex; align-items: center; gap: 14px;
+}
+#btn-settings {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); padding: 2px;
+  transition: color 0.15s, transform 0.15s;
+  display: flex; align-items: center;
+  position: relative;
+}
+#btn-settings:hover { color: var(--text); transform: scale(1.1); }
+#btn-settings > svg { width: 14px; height: 14px; }
+.settings-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: rgba(255, 252, 248, 0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 8px 0;
+  z-index: 50;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.settings-dropdown.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.settings-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim); cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  background: none; border: none; width: 100%; text-align: left;
+}
+.settings-item:hover { color: var(--text); background: rgba(120,100,80,0.06); }
+.settings-item svg { width: 13px; height: 13px; flex-shrink: 0; }
+.settings-divider { height: 1px; background: var(--glass-border); margin: 4px 12px; }
+
+/* -- BOTTOM BAR ---------------------------- */
+#hud-bottom {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 10px;
+  position: relative;
+}
+
+#controls-row {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 4px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ctrl-group { display: flex; align-items: center; gap: 2px; }
+
+.ctrl-divider {
+  width: 1px; height: 22px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 0 4px;
+}
+
+.ctrl-btn {
+  background: transparent; border: none;
+  color: var(--text-dim);
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 400;
+  padding: 7px 10px;
+  border-radius: 7px; cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap; letter-spacing: 0.3px;
+}
+.ctrl-btn:hover { background: rgba(122,107,90,0.08); color: var(--text); }
+.ctrl-btn.active {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 2px 8px rgba(122,107,90,0.3);
+}
+.ctrl-btn .key {
+  display: inline-block; font-family: 'DM Mono', monospace;
+  font-size: 8px; font-weight: 300;
+  color: rgba(0,0,0,0.2); margin-left: 3px;
+}
+.ctrl-btn.active .key { color: rgba(255,255,255,0.5); }
+
+/* Tool buttons (seeds, actions) */
+.tool-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 7px; padding: 6px 12px;
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 400;
+  color: var(--text-dim); cursor: pointer;
+  transition: all 0.15s ease; letter-spacing: 0.3px;
+}
+.tool-btn:hover {
+  background: rgba(122,107,90,0.06);
+  border-color: rgba(120,100,80,0.2);
+  color: var(--text);
+}
+.tool-btn.open {
+  background: rgba(122,107,90,0.1);
+  border-color: rgba(120,100,80,0.2);
+  color: var(--text);
+}
+.tool-btn svg { width: 14px; height: 14px; }
+
+#hint {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; color: var(--text-dim);
+  letter-spacing: 0.8px; opacity: 0.35;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════
+   PANELS (Seeds & Actions)
+   ═══════════════════════════════════════════ */
+.panel {
+  position: absolute; bottom: 68px;
+  left: 50%; transform: translateX(-50%) translateY(8px);
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 15;
+}
+.panel.open {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.panel-header {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 12px;
+}
+.panel-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.panel-close {
+  background: none; border: none;
+  color: var(--text-dim); cursor: pointer;
+  padding: 2px; line-height: 1;
+  transition: color 0.15s;
+}
+.panel-close:hover { color: var(--text); }
+.panel-close svg { width: 14px; height: 14px; }
+
+/* Seeds grid */
+#seeds-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px; width: 320px;
+}
+
+.seed-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.seed-card:hover:not(.locked) {
+  background: rgba(122,107,90,0.05);
+  border-color: var(--glass-border);
+}
+.seed-card.selected {
+  background: rgba(122,107,90,0.08);
+  border-color: rgba(120,100,80,0.18);
+}
+.seed-card.locked { opacity: 0.35; cursor: default; }
+.seed-card .sc-icon { width: 28px; height: 28px; flex-shrink: 0; }
+.seed-card .sc-icon svg { width: 100%; height: 100%; }
+.seed-card .sc-info { display: flex; flex-direction: column; gap: 1px; }
+.seed-card .sc-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--text);
+}
+.seed-card.locked .sc-name { color: var(--text-dim); }
+.seed-card .sc-desc {
+  font-size: 9px; font-weight: 200;
+  color: var(--text-dim); line-height: 1.3;
+}
+
+/* Actions list */
+#actions-list, #view-list { display: flex; flex-direction: column; gap: 4px; width: 260px; }
+
+.action-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.action-row:hover:not(.locked) {
+  background: rgba(122,107,90,0.05);
+  border-color: var(--glass-border);
+}
+.action-row.selected {
+  background: rgba(122,107,90,0.08);
+  border-color: rgba(120,100,80,0.18);
+}
+.action-row.locked { opacity: 0.35; cursor: default; }
+.action-row .ar-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.action-row .ar-icon svg { width: 100%; height: 100%; }
+.action-row .ar-info { display: flex; flex-direction: column; gap: 1px; }
+.action-row .ar-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--text);
+}
+.action-row.locked .ar-name { color: var(--text-dim); }
+.action-row .ar-desc {
+  font-size: 9px; font-weight: 200;
+  color: var(--text-dim); line-height: 1.3;
+}
+
+/* -- NOTIFICATIONS ------------------------- */
+#notifs {
+  position: absolute; top: 50%; right: 32px;
+  transform: translateY(-50%);
+  text-align: right; pointer-events: none; z-index: 20;
+  display: flex; flex-direction: column; gap: 4px;
+  align-items: flex-end;
+}
+.notif {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; letter-spacing: 2.5px;
+  color: var(--accent); text-transform: uppercase;
+  opacity: 0;
+  animation: notif-anim 3s ease-out forwards;
+  text-shadow: 0 0 12px rgba(122,107,90,0.2);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wiggle {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px); }
+  30% { transform: translateX(4px); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-1px); }
+  90% { transform: translateX(1px); }
+}
+.cs-card.wiggle { animation: wiggle 0.4s ease; }
+@keyframes notif-anim {
+  0% { opacity: 0; transform: translateY(8px) scale(0.97); }
+  12% { opacity: 1; transform: translateY(0) scale(1); }
+  65% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* ═══ MODALS ═══ */
+.modal-overlay {
+  position: absolute; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(232, 228, 223, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.modal-overlay.visible { opacity: 1; pointer-events: auto; }
+
+.modal-box {
+  background: rgba(255, 252, 248, 0.95);
+  border: 1px solid rgba(120, 100, 80, 0.12);
+  border-radius: 16px;
+  padding: 28px 24px;
+  min-width: 300px; max-width: 360px;
+  display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+}
+
+.modal-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--text-dim); text-align: center;
+}
+
+.save-slot {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.save-slot:hover {
+  background: rgba(255, 252, 248, 0.95);
+  border-color: rgba(120, 100, 80, 0.2);
+}
+.save-slot.selected {
+  border-color: var(--accent);
+  background: rgba(255, 252, 248, 0.98);
+}
+.save-slot.empty { opacity: 0.5; }
+.save-slot.empty:hover { opacity: 0.8; }
+
+.slot-number {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--text-dim); letter-spacing: 1px;
+  width: 20px; text-align: center;
+}
+.slot-info {
+  display: flex; flex-direction: column; gap: 2px; flex: 1;
+}
+.slot-name {
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; font-weight: 400; color: var(--text);
+}
+.slot-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px;
+}
+.slot-delete {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-size: 14px; padding: 4px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.save-slot:hover .slot-delete { opacity: 0.5; }
+.slot-delete:hover { opacity: 1 !important; color: #c44; }
+
+#save-name-row {
+  display: flex; gap: 8px; align-items: center;
+}
+#save-name-input {
+  flex: 1; padding: 10px 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; color: var(--text);
+  outline: none;
+}
+#save-name-input:focus { border-color: var(--accent); }
+
+.modal-btn {
+  padding: 10px 20px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 400;
+  color: var(--text); cursor: pointer;
+  transition: all 0.2s ease;
+}
+.modal-btn:hover {
+  background: rgba(255, 252, 248, 0.95);
+  border-color: var(--accent);
+}
+
+.modal-close {
+  background: none; border: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 1px;
+  color: var(--text-dim); cursor: pointer;
+  text-transform: uppercase; padding: 8px;
+  text-align: center;
+}
+.modal-close:hover { color: var(--text); }
+
+/* ═══ ORGANISM INSPECTOR ═══ */
+.inspector-panel {
+  position: absolute;
+  bottom: 100px; left: 24px;
+  width: 220px;
+  background: rgba(255, 252, 248, 0.92);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px;
+  pointer-events: auto;
+  z-index: 30;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+.inspector-panel.visible {
+  opacity: 1; transform: translateY(0);
+}
+.inspector-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.inspector-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text);
+}
+.inspector-close-btn {
+  background: none; border: none;
+  font-size: 16px; color: var(--text-dim);
+  cursor: pointer; padding: 2px 6px; line-height: 1;
+}
+.inspector-close-btn:hover { color: var(--text); }
+.inspector-body {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.inspector-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.inspector-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  color: var(--text-dim); text-transform: uppercase; flex-shrink: 0;
+}
+.inspector-value {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; color: var(--text); text-align: right;
+}
+.inspector-bar-track {
+  flex: 1; height: 6px;
+  background: rgba(120, 100, 80, 0.08);
+  border-radius: 3px; overflow: hidden;
+}
+.inspector-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.inspector-bar-fill.stress { background: #c07050; }
+.inspector-swatch {
+  width: 100%; height: 4px;
+  border-radius: 2px; margin-top: 12px;
+}
+
+#photo-toolbar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: rgba(30, 28, 24, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(122, 107, 90, 0.3);
+  border-radius: 24px;
+  padding: 8px 16px;
+}
+.photo-btn {
+  background: rgba(122, 107, 90, 0.25);
+  color: #d4c8b8;
+  border: 1px solid rgba(122, 107, 90, 0.4);
+  border-radius: 16px;
+  padding: 8px 18px;
+  font: 13px/1 'Georgia', serif;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.photo-btn:hover {
+  background: rgba(122, 107, 90, 0.45);
+}
+.photo-exit { color: #a08870; }
+.photo-count {
+  color: #7a6b5a;
+  font: 11px/1 'Georgia', serif;
+  margin-left: -4px;
+}
+
+/* Capture flash */
+#photo-flash {
+  position: fixed; inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 300;
+  transition: opacity 0.08s ease-out;
+}
+#photo-flash.flash { opacity: 0.6; }
+
+/* Gallery slide-out panel */
+#photo-gallery {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 320px;
+  z-index: 250;
+  background: rgba(22, 20, 18, 0.96);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid rgba(122, 107, 90, 0.2);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+#photo-gallery.open { transform: translateX(0); }
+
+#gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(122, 107, 90, 0.15);
+  flex-shrink: 0;
+}
+#gallery-title {
+  font: 14px/1 'Georgia', serif;
+  color: #d4c8b8;
+  letter-spacing: 0.04em;
+}
+#gallery-close {
+  background: none; border: none;
+  color: #7a6b5a; font-size: 18px;
+  cursor: pointer; padding: 4px 8px;
+}
+#gallery-close:hover { color: #d4c8b8; }
+
+#gallery-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+}
+#gallery-grid::-webkit-scrollbar { width: 4px; }
+#gallery-grid::-webkit-scrollbar-track { background: transparent; }
+#gallery-grid::-webkit-scrollbar-thumb { background: rgba(122, 107, 90, 0.3); border-radius: 2px; }
+
+.gallery-thumb {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.12s;
+}
+.gallery-thumb:hover {
+  border-color: rgba(122, 107, 90, 0.5);
+  transform: scale(1.04);
+}
+.gallery-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.gallery-thumb-time {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 2px 5px;
+  background: rgba(0,0,0,0.6);
+  color: #a09080;
+  font: 9px/1.3 monospace;
+  text-align: right;
+}
+#gallery-empty {
+  color: #5a5048;
+  font: 13px/1.6 'Georgia', serif;
+  text-align: center;
+  padding: 40px 16px;
+  grid-column: 1 / -1;
+}
+
+/* Preview overlay */
+#gallery-preview {
+  position: fixed; inset: 0;
+  z-index: 260;
+  background: rgba(10, 8, 6, 0.96);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#gallery-preview.open { display: flex; }
+#preview-img {
+  max-width: 88vw;
+  max-height: 76vh;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+#preview-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  align-items: center;
+}
+#preview-bar .photo-btn { font-size: 12px; padding: 7px 16px; }
+#preview-time {
+  color: #5a5048;
+  font: 11px/1 monospace;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ LANDING PAGE ═══ -->
+  <div id="landing">
+    <div id="landing-content">
+      <div id="landing-title">Garden of Emergence</div>
+      <div id="landing-sub">Plant seeds · Watch them grow · Witness emergence</div>
+      <div id="landing-btns">
+        <button class="landing-btn" id="btn-new">New Garden</button>
+        <button class="landing-btn" id="btn-continue" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CANVAS SELECT ═══ -->
+  <div id="canvas-select">
+    <div id="cs-title">Choose Your Canvas</div>
+    <div id="cs-cards">
+      <div class="cs-card" data-canvas="sphere">
+        <div class="cs-icon">
+          <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.2" color="#7a6b5a">
+            <circle cx="22" cy="22" r="16"/>
+            <ellipse cx="22" cy="22" rx="16" ry="7"/>
+            <ellipse cx="22" cy="22" rx="7" ry="16"/>
+            <line x1="6" y1="22" x2="38" y2="22" stroke-dasharray="2 2" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="cs-name">Sphere</div>
+        <div class="cs-desc">Infinite surface. No edges, no boundaries.</div>
+      </div>
+      <div class="cs-card" data-canvas="cube">
+        <div class="cs-icon">
+          <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.2" color="#7a6b5a">
+            <path d="M22 6L38 15V29L22 38L6 29V15Z"/>
+            <path d="M22 22L22 38" stroke-dasharray="2 2" opacity="0.3"/>
+            <path d="M22 22L6 15" stroke-dasharray="2 2" opacity="0.3"/>
+            <path d="M22 22L38 15" stroke-dasharray="2 2" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="cs-name">Cube</div>
+        <div class="cs-desc">Six faces. Strategic territory.</div>
+      </div>
+      <div class="cs-card" data-canvas="plane">
+        <div class="cs-icon">
+          <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.2" color="#7a6b5a">
+            <rect x="7" y="12" width="30" height="20" rx="2"/>
+            <line x1="7" y1="18" x2="37" y2="18" stroke-dasharray="2 2" opacity="0.3"/>
+            <line x1="7" y1="24" x2="37" y2="24" stroke-dasharray="2 2" opacity="0.3"/>
+            <line x1="18" y1="12" x2="18" y2="32" stroke-dasharray="2 2" opacity="0.3"/>
+            <line x1="29" y1="12" x2="29" y2="32" stroke-dasharray="2 2" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="cs-name">Plane</div>
+        <div class="cs-desc">Flat and bounded. Classic petri dish.</div>
+      </div>
+    </div>
+    <button id="cs-back">← Back</button>
+  </div>
+
+  <!-- ═══ TUTORIAL SLIDES ═══ -->
+  <div id="tutorial-overlay">
+    <div id="tutorial-card">
+      <div id="tutorial-body">
+        <div id="tutorial-icon"></div>
+        <div id="tutorial-heading"></div>
+        <div id="tutorial-text"></div>
+      </div>
+      <div id="tutorial-footer">
+        <div id="tutorial-dots"></div>
+        <div id="tutorial-btns">
+          <button id="tutorial-skip" class="tutorial-btn">Skip</button>
+          <button id="tutorial-next" class="tutorial-btn primary">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HUD ═══ -->
+  <div id="hud">
+    <div id="hud-top">
+      <div id="brand">
+        <div id="title">Garden of Emergence</div>
+        <div id="subtitle">Plant seeds · Watch them grow</div>
+      </div>
+      <div id="stats">
+        <div id="stats-row">
+          <span id="stat-org">organisms 0</span>
+          <span id="stat-surface">surface 0%</span>
+          <span id="stat-coral"></span>
+          <span id="stat-conflicts"></span>
+          <span id="stat-hybrids"></span>
+          <span id="stat-time">00:00:00</span>
+          <div id="btn-settings" style="position:relative;">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="7" cy="7" r="2.2"/>
+              <path d="M7 1.5v1.2M7 11.3v1.2M1.5 7h1.2M11.3 7h1.2M2.6 2.6l.85.85M10.55 10.55l.85.85M11.4 2.6l-.85.85M3.45 10.55l-.85.85"/>
+            </svg>
+            <div class="settings-dropdown" id="settings-dropdown">
+              <button class="settings-item" id="settings-save">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11.5 12.5H2.5a1 1 0 01-1-1v-9a1 1 0 011-1h7l3 3v7a1 1 0 01-1 1z"/>
+                  <path d="M9.5 12.5v-4h-5v4"/>
+                  <path d="M4.5 1.5v3h4"/>
+                </svg>
+                Save Garden
+              </button>
+              <div class="settings-divider"></div>
+              <button class="settings-item" id="settings-audio">
+                <svg id="audio-icon-on" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 5.5h2l3-2.5v8l-3-2.5H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/>
+                  <path d="M9.5 4.5a3 3 0 010 5"/>
+                  <path d="M11 3a5.5 5.5 0 010 8"/>
+                </svg>
+                <svg id="audio-icon-off" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                  <path d="M2 5.5h2l3-2.5v8l-3-2.5H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z"/>
+                  <line x1="10" y1="5" x2="13" y2="9"/>
+                  <line x1="13" y1="5" x2="10" y2="9"/>
+                </svg>
+                <span id="audio-label">Audio On</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="hud-bottom">
+      <!-- Seeds Panel -->
+      <div class="panel" id="seeds-panel">
+        <div class="panel-header">
+          <div class="panel-title">Seeds</div>
+          <button class="panel-close" data-panel="seeds-panel">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>
+          </button>
+        </div>
+        <div id="seeds-grid"></div>
+      </div>
+      <!-- Actions Panel -->
+      <div class="panel" id="actions-panel">
+        <div class="panel-header">
+          <div class="panel-title">Actions</div>
+          <button class="panel-close" data-panel="actions-panel">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>
+          </button>
+        </div>
+        <div id="actions-list"></div>
+      </div>
+      <!-- View Panel -->
+      <div class="panel" id="view-panel">
+        <div class="panel-header">
+          <div class="panel-title">View</div>
+          <button class="panel-close" data-panel="view-panel">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>
+          </button>
+        </div>
+        <div id="view-list">
+          <div class="action-row" id="view-spin" data-view="spin">
+            <div class="ar-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#7a6b5a" stroke-width="1.3" stroke-linecap="round">
+                <circle cx="12" cy="12" r="7" stroke-dasharray="4 3"/>
+                <path d="M17.5 8L19 5.5"/><path d="M19 5.5L16 6.5"/>
+              </svg>
+            </div>
+            <div class="ar-info">
+              <div class="ar-name">Spin</div>
+              <div class="ar-desc">Constant rotation · swipe to set direction</div>
+            </div>
+          </div>
+          <div class="action-row" id="view-photo" data-view="photo">
+            <div class="ar-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#7a6b5a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2"/>
+                <circle cx="12" cy="13" r="4"/>
+                <circle cx="12" cy="13" r="1.5"/>
+                <path d="M8 6L9 3H15L16 6"/>
+              </svg>
+            </div>
+            <div class="ar-info">
+              <div class="ar-name">Photo Mode</div>
+              <div class="ar-desc">Hide UI · capture screenshots</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="controls-row">
+        <div class="ctrl-group">
+          <button class="ctrl-btn" data-speed="0">Pause</button>
+          <button class="ctrl-btn active" data-speed="1">1×</button>
+          <button class="ctrl-btn" data-speed="2">2×</button>
+          <button class="ctrl-btn" data-speed="5">5×</button>
+          <button class="ctrl-btn" data-speed="10">10×</button>
+        </div>
+        <div class="ctrl-divider"></div>
+        <button class="tool-btn" id="btn-seeds">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" color="currentColor">
+            <path d="M8 13V7"/>
+            <path d="M8 7C8 7 5 5 4 2C7 3 8 5 8 7"/>
+            <path d="M8 7C8 7 11 5 12 2C9 3 8 5 8 7"/>
+            <circle cx="8" cy="14" r="0.8" fill="currentColor" stroke="none"/>
+          </svg>
+          Seeds
+        </button>
+        <button class="tool-btn" id="btn-actions">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="5.5"/>
+            <path d="M8 5V8L10 10"/>
+          </svg>
+          Actions
+        </button>
+        <button class="tool-btn" id="btn-view">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="5"/>
+            <circle cx="8" cy="8" r="2"/>
+            <line x1="8" y1="1" x2="8" y2="3"/>
+            <line x1="8" y1="13" x2="8" y2="15"/>
+            <line x1="1" y1="8" x2="3" y2="8"/>
+            <line x1="13" y1="8" x2="15" y2="8"/>
+          </svg>
+          View
+        </button>
+      </div>
+      <div id="hint">click sphere to plant · scroll to zoom · drag to orbit</div>
+    </div>
+  </div>
+  <div id="notifs"></div>
+
+  <!-- ═══ SAVE MODAL ═══ -->
+  <div id="save-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Save Garden</div>
+      <div id="save-slots"></div>
+      <div id="save-name-row" style="display:none;">
+        <input type="text" id="save-name-input" placeholder="Name your garden..." maxlength="24" />
+        <button id="save-confirm-btn" class="modal-btn">Save</button>
+      </div>
+      <button class="modal-close" id="save-modal-close">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ═══ LOAD MODAL ═══ -->
+  <div id="load-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Continue Garden</div>
+      <div id="load-slots"></div>
+      <button class="modal-close" id="load-modal-close">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ═══ ORGANISM INSPECTOR ═══ -->
+  <div id="inspector" class="inspector-panel">
+    <div class="inspector-header">
+      <div id="inspector-name" class="inspector-name">—</div>
+      <button id="inspector-close" class="inspector-close-btn">×</button>
+    </div>
+    <div class="inspector-body">
+      <div class="inspector-row">
+        <span class="inspector-label">type</span>
+        <span id="insp-type" class="inspector-value">—</span>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">territory</span>
+        <span id="insp-territory" class="inspector-value">—</span>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">energy</span>
+        <div class="inspector-bar-track">
+          <div id="insp-energy-bar" class="inspector-bar-fill"></div>
+        </div>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">stress</span>
+        <div class="inspector-bar-track">
+          <div id="insp-stress-bar" class="inspector-bar-fill stress"></div>
+        </div>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">age</span>
+        <span id="insp-age" class="inspector-value">—</span>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">growth</span>
+        <span id="insp-growth" class="inspector-value">—</span>
+      </div>
+      <div class="inspector-row">
+        <span class="inspector-label">conflicts</span>
+        <span id="insp-conflicts" class="inspector-value">—</span>
+      </div>
+      <div id="insp-hybrid-row" class="inspector-row" style="display:none;">
+        <span class="inspector-label">parents</span>
+        <span id="insp-parents" class="inspector-value">—</span>
+      </div>
+      <div id="insp-catalyst-row" class="inspector-row" style="display:none;">
+        <span class="inspector-label">catalyst</span>
+        <span id="insp-catalyst" class="inspector-value">—</span>
+      </div>
+      <div id="insp-nurture-row" class="inspector-row" style="display:none;">
+        <span class="inspector-label">nurture</span>
+        <span id="insp-nurture" class="inspector-value">—</span>
+      </div>
+    </div>
+    <div class="inspector-swatch" id="insp-swatch"></div>
+  </div>
+</div>
+
+<!-- Photo mode floating toolbar -->
+<div id="photo-toolbar" style="display:none;">
+  <button id="photo-capture" class="photo-btn">⬤ Capture</button>
+  <button id="photo-gallery-btn" class="photo-btn">Gallery <span id="photo-count" class="photo-count"></span></button>
+  <button id="photo-exit" class="photo-btn photo-exit">✕ Exit</button>
+</div>
+
+<!-- Capture flash -->
+<div id="photo-flash"></div>
+
+<!-- Photo gallery -->
+<div id="photo-gallery">
+  <div id="gallery-header">
+    <div id="gallery-title">Gallery</div>
+    <button id="gallery-close">✕</button>
+  </div>
+  <div id="gallery-grid">
+    <div id="gallery-empty">No photos yet — capture some moments</div>
+  </div>
+</div>
+
+<!-- Full-size preview -->
+<div id="gallery-preview">
+  <img id="preview-img" src="" alt="Preview"/>
+  <div id="preview-bar">
+    <span id="preview-time"></span>
+    <button id="preview-export" class="photo-btn">Export</button>
+    <button id="preview-delete" class="photo-btn photo-exit">Delete</button>
+    <button id="preview-close" class="photo-btn">Close</button>
+  </div>
+</div>
+
+<!-- Landing page navigation — runs independently of Three.js -->
+<script>
+(function() {
+  const $ = id => document.getElementById(id);
+  $('btn-new').addEventListener('click', () => {
+    $('landing').classList.add('hidden');
+    $('canvas-select').classList.add('visible');
+  });
+  $('cs-back').addEventListener('click', () => {
+    $('canvas-select').classList.remove('visible');
+    $('landing').classList.remove('hidden');
+  });
+  document.querySelectorAll('.cs-card').forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.classList.contains('locked')) {
+        card.classList.remove('wiggle');
+        void card.offsetWidth; // force reflow
+        card.classList.add('wiggle');
+        return;
+      }
+      const canvasType = card.dataset.canvas;
+      if (window._startGame) window._startGame(null, canvasType);
+    });
+  });
+  $('btn-continue').addEventListener('click', () => {
+    if (window._openLoadModal) window._openLoadModal();
+  });
+  try {
+    let hasSave = false;
+    for (let i = 0; i < 3; i++) {
+      if (localStorage.getItem('garden-of-emergence-slot-' + i)) { hasSave = true; break; }
+    }
+    // Also check legacy key
+    if (!hasSave && localStorage.getItem('garden-of-emergence-save')) hasSave = true;
+    $('btn-continue').disabled = !hasSave;
+  } catch {}
+})();
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

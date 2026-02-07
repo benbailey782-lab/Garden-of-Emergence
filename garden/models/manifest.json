@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "basePath": "models/",
+
+  "coral": [
+    {
+      "id": "anemone-01",
+      "file": "coral/anemone-01.glb",
+      "targetHeight": 0.20,
+      "weight": 0.25,
+      "sway": { "strength": 0.025, "speed": 1.5 },
+      "material": {
+        "roughness": 0.55,
+        "emissiveIntensity": 0.40,
+        "transparent": true,
+        "opacity": 0.92
+      },
+      "palette": ["#39ff14", "#bf40bf", "#ff6b9d", "#ff8c42", "#4deeea", "#e8daef"]
+    }
+  ],
+
+  "fungal": [],
+
+  "hero": {}
+}
